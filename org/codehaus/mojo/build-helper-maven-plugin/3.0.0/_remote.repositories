@@ -1,0 +1,4 @@
+#NOTE: This is an Aether internal implementation file, its format can be changed without prior notice.
+#Fri Jan 19 16:12:52 EST 2018
+build-helper-maven-plugin-3.0.0.jar>scala-tools.org=
+build-helper-maven-plugin-3.0.0.pom>scala-tools.org=

@@ -1,0 +1,4 @@
+#NOTE: This is an Aether internal implementation file, its format can be changed without prior notice.
+#Fri Jan 19 16:07:50 EST 2018
+avro-mapred-1.7.6-cdh5.10.1.pom>cloudera-repository=
+avro-mapred-1.7.6-cdh5.10.1-hadoop2.jar>cloudera-repository=
