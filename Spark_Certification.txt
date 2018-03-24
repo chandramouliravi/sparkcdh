@@ -1,0 +1,118 @@
+
+*** SQOOP EXPORT / IMPORT ***
+sqoop list-databases  --connect jdbc:mysql://quickstart.cloudera:3306  --username root  --password cloudera;
+sqoop eval --connect jdbc:mysql://quickstart.cloudera:3306/retail_db  --username root  --password cloudera --query "select * from products limit 3"
+sqoop eval --connect jdbc:mysql://quickstart.cloudera:3306/retail_db  --username root  --password cloudera --query "describe products "
+sqoop help eval
+
+sqoop import   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db    \
+     --username root    --password cloudera   --table products   \ 
+     --target-dir /user/hive/warehouse/sqoop/products --fields-terminated-by ','  '\u0001' '\t'
+
+sqoop import   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db    \
+     --username root    --password cloudera   --table products   \ 
+     --target-dir /user/hive/warehouse/sqoop/products --append 
+
+sqoop import   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db    \
+     --username root    --password cloudera   --table products   \ 
+     --target-dir /user/hive/warehouse/sqoop/products --delete-target-dir 
+
+sqoop import   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+ --username root    --password cloudera   --table products \ 
+ --target-dir /user/hive/warehouse/sqoop/products --delete-target-dir --split-by product_id 
+
+
+sqoop import   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+ --username root    --password cloudera   --table products \ 
+ --target-dir /user/hive/warehouse/sqoop/products --delete-target-dir --split-by product_id --as-parquetfile
+
+--as-avrodatafile
+--enclosed-by
+--escaped-by
+--fields-terminated-by
+--lines-terminated-by
+--enclosed-by
+--enclosed-by
+--escaped-by
+--fields-terminated-by
+--lines-terminated-by
+--enclosed-by
+
+sqoop import   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+ --username root    --password cloudera   --table products \ 
+ --target-dir /user/hive/warehouse/sqoop/products --hive-import --hive-database retail_db  
+Optional
+--delete-target-dir 
+--boundary-query "select 1,9999" 
+--direct 
+-z 
+--compression-codec 
+
+sqoop import-all-tables   --connect jdbc:mysql://quickstart.cloudera:3306/retail_db \
+ --username root    --password cloudera \
+ --hive-database retail_dball --hive-import \
+ --num-mappers 4 --autoreset-to-one-mapper 
+ 
+mysql> create table orders ( order_id int, order_date datetime, order_customer_id int, order_status varchar(45));
+
+
+sqoop export   --connect jdbc:mysql://quickstart.cloudera:3306/retail_export \
+ --username root    --password cloudera   --table orders \ 
+ --export-dir /user/hive/warehouse/retail_dball.db/orders -fields-terminated-by "\001" 
+
+\001 ==> ctrl a ==> default sqoop import field delimiter. Same is used for export so that Sqoop can read properly and export
+
+
+sqoop export   --connect jdbc:mysql://quickstart.cloudera:3306/retail_export  --username root    --password cloudera   --table orders \ 
+ --export-dir /user/hive/warehouse/retail_dball.db/orders --input-fields-terminated-by "\001" 
+
+sqoop export   --connect jdbc:mysql://quickstart.cloudera:3306/retail_export  --username root    --password cloudera   --table orders \
+  --export-dir /user/hive/warehouse/retail_dball.db/orders --input-fields-terminated-by "\001" --staging-table orders_stag --clear-staging-table 
+
+sqoop export   --connect jdbc:mysql://quickstart.cloudera:3306/retail_export  --username root    --password cloudera   --table orders \
+  --export-dir /user/hive/warehouse/retail_dball.db/orders/updates --input-fields-terminated-by "\001" --update-key order_id --update-mode updateonly 
+
+sqoop export   --connect jdbc:mysql://quickstart.cloudera:3306/retail_export  --username root    --password cloudera   --table orders \
+  --export-dir /user/hive/warehouse/retail_dball.db/orders/updates --input-fields-terminated-by "\001" --update-key order_id --update-mode allowinsert 
+
+  
+ 
+*** RDD FUNCTIONS *** 
+val delim:Char=','
+val orders=sc.textFile("/apps/hive/warehouse/retail_dball.db/orders")
+val orders_rec=orders.map(x=>x.split("\u0001"))
+orders_rec.take(2)
+val i:Char=0x01;
+val orders_rec=orders.map(x=>x.split(i))
+orders_rec.take(2)
+val ordersMap=sc.textFile("/apps/hive/warehouse/retail_dball.db/orders").map(x=>(x.split("\u0001")(0),x.split("\u0001")(1)))
+
+** DATAFRAME ***
+val myDF=sqlContext.sql.read.parquet("/apps/hive/warehouse/retail_dball.db/orders")
+myDF
+myDF.show(5)
+myDF.registerTempTable("myTempTable")
+val myDFTable = sqlContext.sql("SELECT col1, col2, col3 FROM myTempTable WHERE col2 > 1000")
+myDFTable.map(x => x(0) + "," + x(1) + "," + x(2)).saveAsTextFile("/data/raw/vantiv/temp_parquet.txt")
+
+val myDFTable = sqlContext.sql("SELECT * FROM myTempTable WHERE col2 > 1000")
+myDFTable.map(x => x.mkString(",").saveAsTextFile("/data/raw/vantiv/temp_parquet.txt")
+
+
+val f=sc.textFile("/data/raw/temp.txt")
+******PARQUET******
+sqlContext.setConf("spark.sql.parquet.compression.codec", "uncompressed/snappy/gzip")
+sc.textFile("/vantiv/connect_direct/mf/wend.tag").toDF().write.parquet("/data/raw/vantiv/temp_parquet.txt")
+sqlContext.read.parquet("/data/raw/vantiv/temp_parquet.txt").map(x=>x.toString.split(delim)(0)).take(1)
+
+******AVRO******
+import com.databricks.spark.avro._
+sqlContext.setConf("spark.sql.avro.compression.codec","uncompressed/snappy/deflate") 
+sc.textFile("/vantiv/connect_direct/mf/wend.tag").toDF().write.avro("/data/raw/vantiv/temp_parquet.txt")
+sqlContext.read.avro("/data/raw/vantiv/temp_parquet.txt").show()
+
+******JSON******
+sqlContext.setConf("spark.sql.json.compression.codec","uncompressed/snappy/deflate/gzip/lz4/bzip2") 
+sc.textFile("/vantiv/connect_direct/mf/wend.tag").toDF().write.json("/data/raw/vantiv/temp_parquet.txt")
+sqlContext.read.json("/data/raw/vantiv/temp_parquet.txt").show()
+
